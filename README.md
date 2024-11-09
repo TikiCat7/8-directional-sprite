@@ -1,6 +1,8 @@
 ### 8 directional animated sprite using threejs.
 
-- UV data exported from crocotile3D.
+https://github.com/user-attachments/assets/84899c32-0c92-495a-a1cc-679f7b8e85a9
+
+- UV data exported from crocotile3D
 ```json
 {
     "name": "sprite_walk_N",
@@ -69,6 +71,3 @@
   }
 ```
 - direction is updated based on `currentDirection = getDirection(controls.getAzimuthalAngle());`
-
-https://github.com/user-attachments/assets/84899c32-0c92-495a-a1cc-679f7b8e85a9
-
