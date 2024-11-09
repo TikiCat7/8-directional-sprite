@@ -13,6 +13,35 @@ const canvas = document.querySelector("canvas.webgl");
 // Scene
 const scene = new THREE.Scene();
 
+/**
+ * Lights
+ */
+const ambientLight = new THREE.AmbientLight("white", 3);
+const directionalLight = new THREE.DirectionalLight("white, 4000");
+directionalLight.castShadow = true;
+directionalLight.position.y = 2;
+directionalLight.shadow.mapSize.width = 1024;
+directionalLight.shadow.mapSize.height = 1024;
+
+const directionalLightHelper = new THREE.DirectionalLightHelper(
+  directionalLight,
+);
+// scene.add(directionalLightHelper);
+const spotLight = new THREE.SpotLight("white", 10, 10, 45, 20);
+spotLight.castShadow = true;
+
+spotLight.shadow.mapSize.width = 1024;
+spotLight.shadow.mapSize.height = 1024;
+
+spotLight.position.y = 2;
+scene.add(directionalLight);
+scene.add(spotLight);
+scene.add(ambientLight);
+
+// Add spotlight helper
+const spotLightHelper = new THREE.SpotLightHelper(spotLight);
+scene.add(spotLightHelper);
+
 // Texture
 const textureLoader = new THREE.TextureLoader();
 const spriteTexture = textureLoader.load("sprite.png");
@@ -25,16 +54,68 @@ spriteTexture.colorSpace = THREE.SRGBColorSpace;
 const gui = new GUI();
 let params = {
   isAnimating: true,
+  spotlightColor: spotLight.color.getHex(),
+  spotlightIntensity: spotLight.intensity,
+  spotlightDistance: spotLight.distance,
+  spotlightAngle: THREE.MathUtils.radToDeg(spotLight.angle),
+  spotlightPenumbra: spotLight.penumbra,
+  spotlightX: spotLight.position.x,
+  spotlightY: spotLight.position.y,
+  spotlightZ: spotLight.position.z,
 };
+
 gui.add(params, "isAnimating");
+
+gui.addColor(params, "spotlightColor").onChange((value: number) => {
+  spotLight.color.setHex(value);
+});
+
+gui.add(params, "spotlightIntensity", 0, 100).onChange((value: number) => {
+  spotLight.intensity = value;
+});
+
+gui.add(params, "spotlightDistance", 0, 50).onChange((value: number) => {
+  spotLight.distance = value;
+});
+
+gui.add(params, "spotlightAngle", 0, 90).onChange((value: number) => {
+  spotLight.angle = THREE.MathUtils.degToRad(value);
+});
+
+gui.add(params, "spotlightPenumbra", 0, 1).onChange((value: number) => {
+  spotLight.penumbra = value;
+});
+
+gui.add(params, "spotlightX", -10, 10).onChange((value: number) => {
+  spotLight.position.x = value;
+});
+
+gui.add(params, "spotlightY", -10, 10).onChange((value: number) => {
+  spotLight.position.y = value;
+});
+
+gui.add(params, "spotlightZ", -10, 10).onChange((value: number) => {
+  spotLight.position.z = value;
+});
 
 // test cube for perspective when rotating camera
 const cube = new THREE.Mesh(
-  new THREE.BoxGeometry(3, 3, 3),
-  new THREE.MeshBasicMaterial({ color: "darkblue" }),
+  new THREE.BoxGeometry(10, 3, 10),
+  new THREE.MeshStandardMaterial({ color: "darkblue", metalness: 0.7 }),
 );
+cube.castShadow = true;
+cube.receiveShadow = true;
 cube.position.setY(-2);
 scene.add(cube);
+
+const cube2 = new THREE.Mesh(
+  new THREE.BoxGeometry(1, 1, 1),
+  new THREE.MeshStandardMaterial({ color: "pink", metalness: 0.7 }),
+);
+cube2.castShadow = true;
+cube2.receiveShadow = true;
+cube2.position.setX(1);
+// scene.add(cube2);
 
 /**
  * Sizes
@@ -90,13 +171,16 @@ renderer.setSize(sizes.width, sizes.height);
 renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
 
 const spritePlane = new THREE.PlaneGeometry(1, 1);
-const spriteMaterial = new THREE.MeshBasicMaterial({
+const spriteMaterial = new THREE.MeshStandardMaterial({
   transparent: true,
   map: spriteTexture,
+  side: THREE.DoubleSide,
 });
 
 // Create the animated sprite mesh
 const animatedSpriteMesh = new THREE.Mesh(spritePlane, spriteMaterial);
+animatedSpriteMesh.castShadow = true;
+// animatedSpriteMesh.receiveShadow = true;
 // set some initial data like direction, frame and uv
 let currentDirection = "SW";
 let currentAnimation = UVData.find(
@@ -118,6 +202,20 @@ const tick = () => {
   currentAnimation = UVData.find(
     (animation) => animation.name === `sprite_walk_${currentDirection}`,
   );
+
+  // Update spotlight position and helper
+  spotLight.position.set(
+    params.spotlightX,
+    params.spotlightY,
+    params.spotlightZ,
+  );
+  spotLight.castShadow = true;
+
+  spotLight.shadow.mapSize.width = 1024;
+  spotLight.shadow.mapSize.height = 1024;
+  spotLight.shadow.camera.near = 0.1;
+  spotLight.shadow.camera.far = 5;
+  spotLightHelper.update();
 
   currentAnimationFrame = Math.floor(elapsedTime * 8) % 3;
   currentFrameUVs =
@@ -152,7 +250,10 @@ const tick = () => {
   controls.update();
 
   // Render
+  renderer.shadowMap.enabled = true;
+  renderer.shadowMap.type = THREE.PCFSoftShadowMap;
   renderer.render(scene, camera);
+
   // Billboarding effect
   animatedSpriteMesh.lookAt(camera.position);
 
